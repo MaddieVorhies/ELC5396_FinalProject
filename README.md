@@ -1,5 +1,5 @@
-# Touch Sensor Project
-This project will implement a capacitative touch sensor. 
+# Heart Rate Sensor Project
+This project will implement a heart rate sensor from Sparkfun.  
 
 # Description
-This project will showcase the abilites of a capacitative touch sensor. The sensor is able to detect touch, pinch, and spread. These motions can be shown on the seven segment display on the nexys 4 DDR board. Another possible addition to this project is being able to have the LEDs of the board correlate to the movement on the touch screen. For example, if you move your finger across the screen left and right, the LEDs will light up left to right. 
+This project will showcase the abilites of a heart rate sensor and pulse oximeter. The user will attach the sensor to their finger and their heart rate or their oxygen saturation level will be displayed on the seven segment display of the Nexys4DDR board. They will use a button to switch from displaying their heart rate to displaying their oxygen saturations levels. An LED will light up green if their levels are in a healthy range and it will light up red if they are in an unhealthy range. 
