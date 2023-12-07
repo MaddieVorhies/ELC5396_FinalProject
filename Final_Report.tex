@@ -1,0 +1,155 @@
+
+%==========================================================
+%=========== Document Setup  ==============================
+
+% Formatting defined by class file
+\documentclass[11pt]{article}
+
+% ---- Document formatting ----
+\usepackage[margin=1in]{geometry}	% Narrower margins
+\usepackage{booktabs}				% Nice formatting of tables
+\usepackage{graphicx}	
+\usepackage{float}	
+\usepackage[section]{placeins}		% Ability to include graphics
+
+%\setlength\parindent{0pt}	% Do not indent first line of paragraphs 
+\usepackage[parfill]{parskip}		% Line space b/w paragraphs
+%	parfill option prevents last line of pgrph from being fully justified
+
+% Parskip package adds too much space around titles, fix with this
+\RequirePackage{titlesec}
+\titlespacing\section{0pt}{8pt plus 4pt minus 2pt}{3pt plus 2pt minus 2pt}
+\titlespacing\subsection{0pt}{4pt plus 4pt minus 2pt}{-2pt plus 2pt minus 2pt}
+\titlespacing\subsubsection{0pt}{2pt plus 4pt minus 2pt}{-6pt plus 2pt minus 2pt}
+
+% ---- Hyperlinks ----
+\usepackage[colorlinks=true,urlcolor=blue]{hyperref}	% For URL's. Automatically links internal references.
+
+% ---- Code listings ----
+\usepackage{listings} 					% Nice code layout and inclusion
+\usepackage[usenames,dvipsnames]{xcolor}	% Colors (needs to be defined before using colors)
+
+% Define custom colors for listings
+\definecolor{listinggray}{gray}{0.98}		% Listings background color
+\definecolor{rulegray}{gray}{0.7}			% Listings rule/frame color
+
+% Style for Verilog
+\lstdefinestyle{Verilog}{
+	language=Verilog,					% Verilog
+	backgroundcolor=\color{listinggray},	% light gray background
+	rulecolor=\color{blue}, 			% blue frame lines
+	frame=tb,							% lines above & below
+	linewidth=\columnwidth, 			% set line width
+	basicstyle=\small\ttfamily,	% basic font style that is used for the code	
+	breaklines=true, 					% allow breaking across columns/pages
+	tabsize=3,							% set tab size
+	commentstyle=\color{gray},	% comments in italic 
+	stringstyle=\upshape,				% strings are printed in normal font
+	showspaces=false,					% don't underscore spaces
+}
+
+% How to use: \Verilog[listing_options]{file}
+\newcommand{\Verilog}[2][]{%
+	\lstinputlisting[style=Verilog,#1]{#2}
+}
+
+
+
+
+%======================================================
+%=========== Body  ====================================
+\begin{document}
+
+\title{Final Report: Heart Rate Sensor}
+\author{Maddie Vorhies}
+
+\maketitle
+
+\section*{Github Repository}
+https://github.com/MaddieVorhies/ELC5396\_FinalProject.git
+
+\section*{Summary}
+
+This project uses a heart rate sensor from Sparkfun with the Nexys 4 DDR FPGA board to create a functioning system. Once the program is running on the board, the user can place their finger on the heart rate sensor and the board will display their heart rate on the seven-segment display. If the user’s heart rate Is within a healthy range, a green LED will light up on the FPGA board, and if the user’s heart range is not in a healthy range, a red LED will light up on the FPGA board. If the sensor does not detect a heart rate, it will display “none” on the seven-segment display. This program will continue to run until the user powers down the FPGA board.
+
+\section*{Design Sketch}
+
+\begin{figure}[ht]\centering
+	
+	\includegraphics [width=0.4\textwidth,trim = 70 90 60 50, clip]{FinalSchematic}
+	\caption{Design Schematic}
+	\label{fig:sim_with_table}
+	
+\end{figure}
+
+\section*{Implementation}
+
+The heart rate sensor communicates with the FPGA board using I2C. This requires the use of an SDA wire for data transfer and an SCL wire for the clock signal. Using the constraints file and peripheral module JB, pins 3 and 4 were configured to be the SDA and SCL pins. These pins were configured in hardware so that they could be directly connected to the I2C bus on the FPGA board. They are configured with pullup resistors to pull the line high when it is not driven low by the open-drain interface. 
+
+There are two more pins that are required to make the sensor work: RSTN pin and MFIO pin. The RSTN pin is configured at a general-purpose output (GPO) pin and the MFIO pin is configured to be a general-purpose input/output (GPIO) pin with a pullup resistor. These pins were configured on the peripheral module labeled JA on pins 1 and 2. 
+
+This project uses a total of eight slots within the mmio subsystem: system timer, UART, gpo, gpi, user defined, pwm, led mux, and I2C. The system timer is the hardware clock that is used to keep time. The UART module is used to test the software of the system. It allows the output of the calculations to be seen and to be checked for correctness by the user. The gpo and gpi modules are used for the RSTN and MFIO pins. The RSTN pin is only used as an output pin, but the MFIO pin will serve as an input and output pin. The “user defined” module is where both pins are set as output pins. The pwm module is used to control the color and brightness of the LEDs that indicate whether the users heart rate is within a healthy range. The led mux module gives access to the seven-segment display on the board. Lastly, the I2C module is used for communication between the sensor and the FPGA board. 
+
+After the FPGA board is configured in hardware, the bitstream is generated and the hardware is exported. In software, I2C messages are sent and received, heart rate values are calculated, and the logic for the LEDs and the seven-segment display are setup. For the sensor to work, it must be put in application mode. This is done by setting the RSTN and MFIO pins high and low in a predetermined pattern. The patter is as follows: set RSTN pin low for 10ms, while RSTN is low set the MFIO pin to high, after 10ms has elapsed set the RSTN to high, after an additional 50ms has elapsed, the sensor is in application mode. Once the sensor is in application mode, the MFIO pin must change from an output pin to an input interrupt pin. 
+
+Once the sensor is in application mode, a series of I2C messages are sent from the FPGA board to the sensor to set it up to measure someone’s heart rate. There are a total of 12 I2C messages that are sent to the sensor to configure it to detect someone's heart rate from their finger. There are other configurations that can detect it using the users wrist instead of their finger and that would have required a different set of I2C messages. Now that the sensor is configured, it is ready to send data back to the FPGA board. The FPGA then repeatedly sends an I2C message to the sensor indicating that it is ready to receive the heart rate data and the sensor replies back with an I2C message containing that data within its 19 registers. The heart rate is then displayed on the seven-segment display and a red LED will light up if the value is not within a healthy range and a green LED will light up if its in a healthy range. If the sensor does not detect a finger or a heart rate, it will display "none" on the seven-segment display. 
+
+\section*{Testing}
+An analog discovery 2 digilent was connected to the SCL and SDA pins on the FPGA board to ensure that the correct I2C messages were sent and received. Figure 2 shows the initial I2C messages that were sent to the sensor to configure it detect the users heart rate from their finger. The FPGA will send a maximum of 4 bytes to the sensor and the sensor contains 19 bytes of information. 
+
+\begin{figure}[ht]\centering
+	
+	\includegraphics [width=0.7\textwidth,trim = 0 0 0 80, clip]{Initial_I2C_Messages}
+	\caption{Initial I2C messages}
+	\label{fig:sim_with_table}
+	
+\end{figure}
+
+The lines that begin with AA [ 55 | WR ] are I2C messages that are being sent from the FPGA board and the lines that begin with AB [ 55 | RD ] are the response from the sensor. Once the FPGA starts sending bytes 0x12 then 0x1, the response from the sensor contains the data for the users heart rate. Most of the bytes in Figure 1 are zero because the sensor has not detected a heart rate yet. 
+
+\begin{figure}[ht]\centering
+	
+	\includegraphics [width=0.7\textwidth,trim = 0 0 0 80, clip]{I2C_Messages}
+	\caption{I2C messages with Heart Rate Data}
+	\label{fig:sim_with_table}
+	
+\end{figure}
+
+Figure 3 shows the response of the sensor while it is reading the users heart rate. Registers 13 and 14 are the two bytes used to calculate the heart rate once the data reaches the FPGA board. 
+
+
+\section*{Results}
+
+Overall, the sensor was able to successfully detect and read the users heart rate from their finger. 
+
+\begin{figure}[ht]\centering
+	
+	\includegraphics [width=0.4\textwidth,trim = 0 700 0 900, clip]{none}
+	\caption{Heart Rate not Detected}
+	\label{fig:sim_with_table}
+	
+\end{figure}
+
+Figure 4 shows what the seven-segment displays when the sensor does not detect a heart rate and is waiting for input. 
+
+\begin{figure}[ht]\centering
+	
+	\includegraphics [width=0.5\textwidth,trim = 0 300 0 900, clip]{green}
+	\caption{Healthy Heart Rate Detected}
+	\label{fig:sim_with_table}
+	
+\end{figure}
+
+Figure 5 shows the seven-segment displaying the heart rate of the user. In this figure, the users heart rate is about 86.8 bpm. This is compared with the heart rate calculated by the users Apple watch. The Apple watch is calculating the users heart rate to be 87 bpm which is very similar to what the sensor has measured. The green LED is also lighting up to indicate that the users heart rate is in a healthy range. The healthy range defined for this project is in between 60-100 bpm. 
+
+\begin{figure}[ht]\centering
+	
+	\includegraphics [width=0.5\textwidth,trim = 0 700 0 900, clip]{red}
+	\caption{Unhealthy Heart Rate Detected}
+	\label{fig:sim_with_table}
+	
+\end{figure}
+
+Figure 6 shows the reading of a heart rate that is outside of the healthy range. Now the LED lights up red instead of green. 
+
+\end{document}
